@@ -41,13 +41,18 @@ void reset_terminal() {
     tcsetattr(STDIN_FILENO,TCSANOW,&old_termios);
 //    printf("\e[m"); //reset color changes (dont need this for now)
 }
-
-void signal_handler(int signum){
+void signal_handler(int signum){  //SIG_DFL is the default signal behaviour (SIGINT{crtl + c} == terminate the program)
     reset_terminal();
     signal(signum,SIG_DFL);
     raise(signum);
 }
 
+void setup_signal_handlers() { //no matter how the terminal is interrupted it always restores the terminal
+    int signals[] = {SIGINT,SIGTERM,SIGQUIT,SIGHUP};
+    for(int i =0;i<4;i++){
+        signal(signals[i],signal_handler);
+    }
+}
 void configure_terminal() {
     tcgetattr(STDIN_FILENO,&old_termios); //this function stores the current snapshot of the terminal
                                           //old_termios is a struct  
@@ -172,7 +177,7 @@ void render(int pos_x,int pos_y){
 
 int main(){
     configure_terminal(); 
-    signal(SIGINT,signal_handler);
+    setup_signal_handlers();
     struct timespec req = {}; //req = how long you want to sleep
     struct timespec rem = {}; // rem = how much time was left if the sleep was interrupted (optional)
     int pos_x = 1,pos_y = 1;
