@@ -29,7 +29,7 @@ typedef struct {
     int key;
     int pos_x;
     int pos_y;
-    char old_screen[MAX_Y][MAX_X];
+    char old_screen[MAX_Y][MAX_X]; //
     char screen[MAX_Y][MAX_X];
 }cursorState;
 
