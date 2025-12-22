@@ -1,0 +1,9 @@
+# binaries
+editor
+
+# object files
+*.o
+
+# temporary files
+*~
+
