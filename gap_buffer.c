@@ -69,8 +69,53 @@ void gb_move_gap_to_point(GapBuffer *gb) {
         return;
     }
     if(gb->point < gb->gapstart) {
+        //move gap towards left 
+        //move the point over by gapsize
+        gb_copy_bytes(gb,(gb->point+(gb->gapend - gb->gapstart)),gb->point,gb->gapstart - gb->point); //dest,src,len
+        gb->gapend-=(gb->gapstart - gb->point);
+        gb->gapstart = gb->point;
+    }
+
+    else {
+        //Since the point will be after the gap ,
+        //find distance gapend and the point
+        //and thats how much we move from gapend to gapstart
+        //we are moving the bytes after the gapend till the point to the start aste
+        gb_copy_bytes(gb,gb->gapstart,gb->gapend,(gb->point - gb->gapend));
+        gb->gapstart+=(gb->point-gb->gapend);
+        gb->gapend = gb->point;
+        gb->point = gb->gapstart;
+    }
+}
+
+void gb_expand_buffer(GapBuffer *gb,size_t size) {
+    //check to see if we actually need to increase the size of the buffer
+    //since the buffer size doesn't include gaps
+    if((gb->bufend - gb->buffer)+size > gb_buffer_size(gb)) {
+        char *origBuffer = gb->buffer;
+        int newBufferSize = (gb->bufend - gb->buffer)+size+gb->GAP_SIZE;
+        gb->buffer = (char *)realloc(gb->buffer,newBufferSize);
+
+        gb->point += (gb->buffer - origBuffer);
+        gb->bufend += (gb->buffer - origBuffer);
+        gb->gapstart += (gb->buffer - origBuffer);
+        gb->gapend += (gb->buffer - origBuffer);
         
     }
+}
+
+
+void gb_expand_gap(GapBuffer *gb,size_t size) {
+    if(size > gb_size_of_gap(gb)) {
+        size+=gb->GAP_SIZE;
+        gb_expand_buffer(gb,size);
+        //move the text after the gap to the right
+        gb_copy_bytes(gb,(gb->gapend+size),gb->gapend,(gb->bufend-gb->gapend));
+
+        gb->gapend+=size;
+        gb->bufend+=size;
+    }
+
 }
 
 size_t gb_size_of_gap(GapBuffer *gb){
@@ -113,9 +158,12 @@ char gb_get_char(GapBuffer *gb) {
 
 void gb_insert_char(GapBuffer *gb,char ch) {
     if(gb->point != gb->gapstart) {
-
-
+        gb_move_gap_to_point(gb);
     }
+    if(gb->gapstart == gb->gapend) {
+        gb_expand_gap(gb,1);
+    }
+    *(gb->gapstart) = ch;
 }
 
 int main(){
