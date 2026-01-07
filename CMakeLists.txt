@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.23)
-
-project(editor C)
+project(text_editor C)
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# include directory
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(include)
 
-# executable
 add_executable(editor
-    gap_buffer.c
+    src/main.c
+    src/editor.c
+    src/gap_buffer.c
 )
+
+target_link_libraries(editor ncurses)
 
