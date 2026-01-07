@@ -18,7 +18,7 @@ void draw_screen() {
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
-    /* for text */
+    // for text
     size_t saved = cursor;
     gb_set_point(gb, 0);
 
@@ -39,7 +39,7 @@ void draw_screen() {
         pos++;
     }
 
-    /* for status bar */
+    // for status bar 
     attron(A_REVERSE);
     mvhline(rows - 1, 0, ' ', cols);
 
@@ -54,7 +54,7 @@ void draw_screen() {
     }
     attroff(A_REVERSE);
 
-    /* restore cursor */
+    // restore cursor 
     gb_set_point(gb, 0);
     y = x = 0;
     for (size_t i = 0; i < cursor; i++) {
@@ -92,7 +92,7 @@ void editor_loop(void)
 
         if (mode == NORMAL) {
             switch (ch) {
-                /* vim motions */
+                // vim motions 
                 case 'h':
                     if (cursor > 0) cursor--;
                     break;
@@ -100,12 +100,12 @@ void editor_loop(void)
                     if (cursor < gb_buffer_size(gb)) cursor++;
                     break;
 
-                /* insert mode */
+                 //insert mode 
                 case 'i':
                     mode = INSERT;
                     break;
 
-                /* command mode (add only :q for now) */
+                 //command mode (add only :q for now) 
                 case ':':
                     mode = COMMAND;
                     cmd_len = 0;
@@ -114,7 +114,7 @@ void editor_loop(void)
             }
         }
         else if (mode == INSERT) {
-            if (ch == 27) {        /* if esc key is pressed */
+            if (ch == 27) {        // if esc key is pressed 
                 mode = NORMAL;
             }
             else if (ch == KEY_BACKSPACE || ch == 127) {
@@ -136,7 +136,7 @@ void editor_loop(void)
             }
         }
         else if (mode == COMMAND) {
-            if (ch == 27) {        /* if esc key is pressed */
+            if (ch == 27) {        // if esc key is pressed 
                 mode = NORMAL;
             }
             else if (ch == '\n') {
