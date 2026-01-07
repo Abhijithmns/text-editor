@@ -14,6 +14,10 @@ GapBuffer *gb_create(size_t GAP_SIZE) {
     gb->gapstart = NULL;
     gb->gapend = NULL;
     gb->GAP_SIZE = GAP_SIZE;
+
+    gb_init_buffer(gb, GAP_SIZE);
+
+    return gb; 
 }
 
 int gb_init_buffer(GapBuffer *gb,size_t size) {
@@ -33,15 +37,13 @@ int gb_init_buffer(GapBuffer *gb,size_t size) {
     return 1;
 } 
 
-
-
 int gb_copy_bytes(GapBuffer *gb,char *dest,char *src,size_t len) {
     if((dest == src) || len == 0) {
         return 1;
     }
     //check to make sure that we dont go beyond the buffer
     if(src > dest) {
-        if((src + len) >= gb->bufend) {
+        if((src + len) > gb->bufend) { 
             return 0;
         }
         for(;len>0;len--) {
@@ -73,51 +75,62 @@ void gb_move_gap_to_point(GapBuffer *gb) {
     if(gb->point < gb->gapstart) {
         //move gap towards left 
         //move the point over by gapsize
-        gb_copy_bytes(gb,(gb->point+(gb->gapend - gb->gapstart)),gb->point,gb->gapstart - gb->point); //dest,src,len
-        gb->gapend-=(gb->gapstart - gb->point);
-        gb->gapstart = gb->point;
-    }
 
+        size_t n = gb->gapstart - gb->point; 
+
+        gb_copy_bytes(gb,gb->gapend - n,gb->point,n);
+        gb->gapstart -= n;
+        gb->gapend   -= n;
+    }
     else {
         //Since the point will be after the gap ,
         //find distance gapend and the point
         //and thats how much we move from gapend to gapstart
         //we are moving the bytes after the gapend till the point to the start aste
-        gb_copy_bytes(gb,gb->gapstart,gb->gapend,(gb->point - gb->gapend));
-        gb->gapstart+=(gb->point-gb->gapend);
-        gb->gapend = gb->point;
-        gb->point = gb->gapstart;
+
+        size_t n = gb->point - gb->gapend;
+
+        gb_copy_bytes(gb,gb->gapstart,gb->gapend,n);
+        gb->gapstart += n;
+        gb->gapend   += n;
     }
+
+    gb->point = gb->gapstart;
+
 }
 
 void gb_expand_buffer(GapBuffer *gb,size_t size) {
-    //check to see if we actually need to increase the size of the buffer
-    //since the buffer size doesn't include gaps
-    if((gb->bufend - gb->buffer)+size > gb_buffer_size(gb)) {
-        char *origBuffer = gb->buffer;
-        int newBufferSize = (gb->bufend - gb->buffer)+size+gb->GAP_SIZE;
-        gb->buffer = (char *)realloc(gb->buffer,newBufferSize);
+    char *origBuffer = gb->buffer;
 
-        gb->point += (gb->buffer - origBuffer);
-        gb->bufend += (gb->buffer - origBuffer);
-        gb->gapstart += (gb->buffer - origBuffer);
-        gb->gapend += (gb->buffer - origBuffer);
-        
-    }
+    size_t newBufferSize =
+        (gb->bufend - gb->buffer) + size + gb->GAP_SIZE;
+
+    gb->buffer = (char *)realloc(gb->buffer,newBufferSize);
+    if(!gb->buffer) return;
+
+    ptrdiff_t diff = gb->buffer - origBuffer;
+
+    gb->point    += diff;
+    gb->bufend   += diff;
+    gb->gapstart += diff;
+    gb->gapend   += diff;
 }
-
 
 void gb_expand_gap(GapBuffer *gb,size_t size) {
     if(size > gb_size_of_gap(gb)) {
         size+=gb->GAP_SIZE;
         gb_expand_buffer(gb,size);
         //move the text after the gap to the right
-        gb_copy_bytes(gb,(gb->gapend+size),gb->gapend,(gb->bufend-gb->gapend));
+        gb_copy_bytes(
+            gb,
+            gb->gapend+size,
+            gb->gapend,
+            gb->bufend-gb->gapend
+        );
 
         gb->gapend+=size;
         gb->bufend+=size;
     }
-
 }
 
 size_t gb_size_of_gap(GapBuffer *gb){
@@ -139,7 +152,7 @@ void gb_set_point(GapBuffer *gb,size_t offset){
     gb->point = gb->buffer + offset;
 
     //if the position lands on a gap,we should skip it (add the size)
-    if(gb->point > gb->gapstart) {
+    if(gb->point >= gb->gapstart) { 
         gb->point += (gb->gapend - gb->gapstart);
     }
 }
@@ -154,7 +167,6 @@ char gb_prev_char(GapBuffer *gb) {
     if(gb->point == gb->gapend) {
         gb->point = gb->gapstart;
     }
-
     return *(--gb->point);
 }
 
@@ -181,6 +193,7 @@ void gb_replace_char(GapBuffer *gb, char ch) {
     }
     *gb->point = ch;
 }
+
 void gb_put_char(GapBuffer *gb, char ch) {
     //this is the func that we are going to pass in the UI part not the insert function
     //it inserts and moves the cursor forward
@@ -188,15 +201,14 @@ void gb_put_char(GapBuffer *gb, char ch) {
     //put_char is for editor behavior
 
     //make sure the gap is at the cursor
-    if(gb->point!=gb->start) {
+    if(gb->point!=gb->gapstart) {
         gb_move_gap_to_point(gb);
     }
 
     gb_insert_char(gb,ch);
 
-    gb->point++;
+    gb->point = gb->gapstart; 
 }
-
 
 char gb_get_char(GapBuffer *gb) {
     //if the point is at gapstart,jump to first real charecter
@@ -214,7 +226,7 @@ void gb_insert_char(GapBuffer *gb,char ch) {
     if(gb->gapstart == gb->gapend) {
         gb_expand_gap(gb,1);
     }
-    *(gb->gapstart) = ch;
+    *(gb->gapstart++) = ch; 
 }
 
 void gb_insert_string(GapBuffer *gb, const char *str, size_t len) {
@@ -233,7 +245,6 @@ void gb_insert_string(GapBuffer *gb, const char *str, size_t len) {
     gb->point = gb->gapstart;
 }
 
-
 void gb_delete_chars(GapBuffer *gb, size_t count) {
     //deleting just means to increase the gapsize
     if(gb->point!=gb->gapstart) {
@@ -247,9 +258,5 @@ void gb_delete_chars(GapBuffer *gb, size_t count) {
     //extend the gap to cover the deleted charecters
     gb->gapstart-=count;
     gb->point = gb->gapstart;
-} 
-
-
-int main(){
-    return 0;
 }
+
