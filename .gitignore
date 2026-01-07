@@ -1,3 +1,4 @@
 build/
 tc.h
 termios.c
+notes.txt
