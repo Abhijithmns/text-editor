@@ -33,6 +33,8 @@ int gb_init_buffer(GapBuffer *gb,size_t size) {
     return 1;
 } 
 
+
+
 int gb_copy_bytes(GapBuffer *gb,char *dest,char *src,size_t len) {
     if((dest == src) || len == 0) {
         return 1;
@@ -148,7 +150,56 @@ void gb_free(GapBuffer *gb){
     free(gb);
 }
 
+char gb_prev_char(GapBuffer *gb) {
+    if(gb->point == gb->gapend) {
+        gb->point = gb->gapstart;
+    }
+
+    return *(--gb->point);
+}
+
+char gb_next_char(GapBuffer *gb) {
+    if(gb->point == gb->gapstart) {
+        gb->point = gb->gapend;
+    }
+    gb->point++;
+    //if we land on the gapstart again
+    if(gb->point == gb->gapstart) {
+        gb->point = gb->gapend;
+    }
+    return *gb->point;
+}
+
+void gb_replace_char(GapBuffer *gb, char ch) {
+    if(gb->point == gb->gapstart) {
+        gb->point = gb->gapend;
+    }
+
+    //if there is no charecter under the cursor it should do nothing
+    if(gb->point == gb->bufend) {
+        return;
+    }
+    *gb->point = ch;
+}
+void gb_put_char(GapBuffer *gb, char ch) {
+    //this is the func that we are going to pass in the UI part not the insert function
+    //it inserts and moves the cursor forward
+    //insert_char function is for datastructure responsibility 
+    //put_char is for editor behavior
+
+    //make sure the gap is at the cursor
+    if(gb->point!=gb->start) {
+        gb_move_gap_to_point(gb);
+    }
+
+    gb_insert_char(gb,ch);
+
+    gb->point++;
+}
+
+
 char gb_get_char(GapBuffer *gb) {
+    //if the point is at gapstart,jump to first real charecter
     if(gb->point == gb->gapstart) {
         gb->point = gb->gapend;
     }
@@ -165,6 +216,39 @@ void gb_insert_char(GapBuffer *gb,char ch) {
     }
     *(gb->gapstart) = ch;
 }
+
+void gb_insert_string(GapBuffer *gb, const char *str, size_t len) {
+    if(gb->point != gb->gapstart) {
+        gb_move_gap_to_point(gb);
+    }
+    //making sure it has enough gap
+    if((size_t)(gb->gapend - gb->gapstart) < len) {
+        gb_expand_gap(gb,len);
+    }
+
+    for(size_t i=0;i<len;i++) {
+        gb->gapstart[i] = str[i];
+    }
+    gb->gapstart+=len;
+    gb->point = gb->gapstart;
+}
+
+
+void gb_delete_chars(GapBuffer *gb, size_t count) {
+    //deleting just means to increase the gapsize
+    if(gb->point!=gb->gapstart) {
+        gb_move_gap_to_point(gb);
+    }
+
+    size_t available = gb->gapstart - gb->buffer;
+    if(count > available) {
+        count = available; //limiting the 
+    }
+    //extend the gap to cover the deleted charecters
+    gb->gapstart-=count;
+    gb->point = gb->gapstart;
+} 
+
 
 int main(){
     return 0;
