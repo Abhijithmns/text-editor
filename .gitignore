@@ -1,10 +1,4 @@
-# binaries
-editor
-
-# object files
-*.o
-
-# temporary files
-*~
-
-
+build/
+tc.h
+termios.c
+notes.txt
