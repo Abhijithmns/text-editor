@@ -260,3 +260,47 @@ void gb_delete_chars(GapBuffer *gb, size_t count) {
     gb->point = gb->gapstart;
 }
 
+int gb_load_file(GapBuffer *gb,FILE *file) {
+    if(!gb || !file) {
+        return 0;
+    }
+
+    //clear the existing buffer
+    gb_init_buffer(gb,gb->GAP_SIZE);
+
+    //make the cursor move to the end 
+    //so that we can find the file size
+    fseek(file,0,SEEK_END);
+    size_t size = ftell(file); //no of bytes form the start since the cursor is at end it is file size
+    rewind(file); //make the cursor point to start again
+
+    gb_expand_gap(gb,size); //make enough space
+
+    size_t read = fread(gb->gapstart,1,size,file); //reading byte by byte
+    gb->gapstart+=read;
+    gb->point = gb->gapstart;
+
+    return 1;
+
+}
+
+int  gb_save_to_file(GapBuffer *gb, FILE *file) {
+    if(!gb || !file) {
+        return 0;
+    }
+
+    //saving means skipping the gap entirely
+    //the gap should never part of the text
+    
+    //write text before the gap
+    size_t left = gb->gapstart - gb->buffer;
+    fwrite(gb->buffer,1,left,file);
+
+    //write after the gap
+    size_t right = gb->bufend - gb->gapend;
+    fwrite(gb->gapend,1,right,file);
+
+    return 1;
+
+}
+

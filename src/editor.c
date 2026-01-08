@@ -11,6 +11,7 @@ GapBuffer *gb;
 size_t cursor = 0;
 
 char command[32];
+char *current_file = NULL;
 int cmd_len = 0;
 
 void draw_screen() {
@@ -143,6 +144,17 @@ void editor_loop(void)
                 if (strcmp(command, "q") == 0) {
                     break;
                 }
+                else if(strcmp(command,"w") == 0) {
+                    if(current_file) {
+                        FILE *file = fopen(current_file,"w");
+
+                        if(file) {
+                            gb_save_to_file(gb,file);
+                            fclose(file);
+                        }
+                    }
+                }
+                
                 mode = NORMAL;
             }
             else if (ch == KEY_BACKSPACE || ch == 127) {

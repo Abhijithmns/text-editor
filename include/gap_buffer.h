@@ -44,7 +44,8 @@ void gb_insert_string(GapBuffer *gb, const char *str, size_t len);
 
 //final functions
 void gb_print(const GapBuffer *gb); //marked
-int  gb_save_to_file(GapBuffer *gb, FILE *file, size_t bytes);
+int  gb_save_to_file(GapBuffer *gb, FILE *file);
+int gb_load_file(GapBuffer *gb,FILE *file);
 
 
 #endif
