@@ -2,7 +2,7 @@
 
 work in progress
 
-##TODO:
+## TODO:
 - Scroll
 - mouse
 - j,k
