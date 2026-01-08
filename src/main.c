@@ -21,8 +21,8 @@ int main(int argc,char **argv) {
             fclose(file);
             cursor = gb_point_offset(gb);
 
-            current_file = strdup(argv[1]); //stores the filename,(strdup creates a duplicate of a string by allocating new memory for the copy)
         }
+        current_file = strdup(argv[1]); //stores the filename,(strdup creates a duplicate of a string by allocating new memory for the copy)
     }
 
     draw_screen();// initial draw after the file load
