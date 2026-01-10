@@ -8,8 +8,8 @@
 int main(int argc,char **argv) {
 
     initscr(); // start ncurses session 
-    raw();     // can use cbreak(); 
-    keypad(stdscr, TRUE);
+    raw();     // can use cbreak(); it disables terminals default behavior
+    keypad(stdscr, TRUE); //keyboard inputs on 
     noecho();
 
     editor_init();
@@ -34,7 +34,7 @@ int main(int argc,char **argv) {
         free(current_file);
     }
 
-    endwin();
+    endwin(); //end session
     return 0;
 }
 

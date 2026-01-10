@@ -100,6 +100,8 @@ void editor_loop(void)
                 case 'l':
                     if (cursor < gb_buffer_size(gb)) cursor++;
                     break;
+                case 'k':
+                    break;
 
                  //insert mode 
                 case 'i':

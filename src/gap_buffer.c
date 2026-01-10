@@ -141,7 +141,7 @@ size_t gb_buffer_size(GapBuffer *gb) {
     return (size_t)((gb->bufend - gb->buffer) - (gb->gapend - gb->gapstart));
 }
 
-size_t gb_point_offset(GapBuffer *gb) {
+size_t gb_point_offset(GapBuffer *gb) { //where is the cursor from the start
     if(gb->point >= gb->gapend)
         return (size_t)((gb->point - gb->buffer) - (gb->gapend - gb->gapstart));
     else 
