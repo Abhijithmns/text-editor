@@ -8,16 +8,39 @@
 MODE mode = NORMAL;
 
 GapBuffer *gb;
+//current pos of the cursor
 size_t cursor = 0;
 
 char command[32];
 char *current_file = NULL;
 int cmd_len = 0;
 
+void get_line_cols(int pos, size_t *line,size_t *col) {
+    *line = 1;
+    *col = 1;
+
+    gb_set_point(gb,0);
+    for(size_t i =0;i<pos;i++) {
+        char c = gb_get_char(gb);
+
+        if(c == '\n') {
+            (*line)++;
+            *col = 1;
+        }
+        else {
+            (*col)++;
+        }
+        gb_next_char(gb);
+    }
+}
+
 void draw_screen() {
     clear();
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
+
+    size_t line_no, col_no;
+    get_line_cols(cursor,&line_no,&col_no);
 
     // for text
     size_t saved = cursor;
@@ -25,7 +48,7 @@ void draw_screen() {
 
     int y = 0, x = 0;
     size_t pos = 0;
-
+    //to actually print the charecters to the stdout
     while (pos < gb_buffer_size(gb) && y < rows - 1) {
         char c = gb_get_char(gb);
 
@@ -48,10 +71,10 @@ void draw_screen() {
         mvprintw(rows - 1, 0, ":%s", command);
     } else {
         mvprintw(rows - 1, 0,
-             "-- %s --  Pos %zu",
+             "-- %s -- | Ln %zu : Col %zu| %s",
              mode == INSERT ? "INSERT" :
              mode == NORMAL ? "NORMAL" : "COMMAND",
-             cursor);
+             line_no,col_no,current_file);
     }
     attroff(A_REVERSE);
 
@@ -155,6 +178,17 @@ void editor_loop(void)
                             fclose(file);
                         }
                     }
+                }
+                else if(strcmp(command,"wq") == 0) {
+                    if(current_file) {
+                        FILE *file = fopen(current_file,"w");
+
+                        if(file) {
+                            gb_save_to_file(gb,file);
+                            fclose(file);
+                        }
+                    }
+                    break;
                 }
                 
                 mode = NORMAL;

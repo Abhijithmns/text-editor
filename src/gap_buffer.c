@@ -1,4 +1,5 @@
 #include "gap_buffer.h"
+#include "editor.h"
 
 #include <stddef.h>
 #include <stdio.h>

@@ -5,7 +5,7 @@
 #include "editor.h"
 #include "gap_buffer.h"
 
-int main(int argc,char **argv) {
+int main(int argc,char **argv) {  
 
     initscr(); // start ncurses session 
     raw();     // can use cbreak(); it disables terminals default behavior
