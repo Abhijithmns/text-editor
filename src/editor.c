@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,7 @@ size_t cursor = 0;
 char command[32];
 char *current_file = NULL;
 int cmd_len = 0;
+size_t view_line = 0; //first visible line on the screen (for scroll logic)
 
 void get_line_cols(int pos, size_t *line,size_t *col) {
     *line = 1;
@@ -34,6 +36,113 @@ void get_line_cols(int pos, size_t *line,size_t *col) {
     }
 }
 
+void MoveCursorDown() {
+    size_t buf_size = gb_buffer_size(gb);
+
+    size_t line_start = cursor; 
+    while(line_start>0) {
+        gb_set_point(gb,line_start - 1);
+        if(gb_get_char(gb) == '\n') {
+            break;
+        }
+        line_start--;
+    }
+
+    size_t col = cursor - line_start;
+
+    size_t line_end = cursor;
+    while(line_end < buf_size) {
+        gb_set_point(gb,line_end);
+        if(gb_get_char(gb) == '\n') {
+            break;
+        }
+        line_end++;
+    }
+
+    if(line_end >= buf_size) return;
+
+    size_t next_start = line_end + 1;
+
+    size_t next_end = next_start;
+    while(next_end < buf_size) {
+        gb_set_point(gb,next_end);
+
+        if(gb_get_char(gb) == '\n') {
+            break;
+        }
+        next_end++;
+    }
+
+    size_t next_len = next_end - next_start;
+
+    if(next_len < col) {
+        cursor = next_start + next_len; //points at the end of the word
+    }
+    else {
+        cursor = next_start + col;
+    }
+}
+
+void MoveCursorUp() {
+    size_t buf_size = gb_buffer_size(gb);
+
+    size_t line_start = cursor;
+    while(line_start > 0) {
+        gb_set_point(gb,line_start-1);
+        if(gb_get_char(gb) == '\n') {
+            break;
+        }
+        line_start--;
+    }
+
+    if(line_start == 0) {
+        return;
+    }
+    size_t col = cursor - line_start;
+
+    size_t prev_end = line_start - 1;
+
+    size_t prev_start = prev_end;
+    while(prev_start > 0) {
+        gb_set_point(gb,prev_start - 1);
+        if(gb_get_char(gb) == '\n') {
+            break;
+        }
+        prev_start--;
+    }
+
+    size_t prev_len = prev_end - prev_start;
+
+    if(col < prev_len) {
+        cursor = prev_start + col;
+    }
+    else {
+        cursor = prev_start + prev_len;
+    }
+}
+
+void adjust_screen() {
+    int rows,cols;
+    getmaxyx(stdscr,rows,cols);
+
+    size_t cursor_line,cursor_col;
+    get_line_cols(cursor,&cursor_line,&cursor_col);
+
+    cursor_line--; //convert to zero based
+    
+    size_t screen_lines = rows-2; //number of that screen can display and the last line is for status line
+
+    if(cursor_line >= view_line + screen_lines) { //cursor went down so scroll down 
+        //last visible line on the screen = view_line + screen_lines - 1;
+        //we can get view_line from the above eqn
+        view_line = cursor_line - screen_lines + 1;
+    }
+
+    if(cursor_line < view_line) { //scroll up
+        view_line = cursor_line;
+    }
+}
+
 void draw_screen() {
     clear();
     int rows, cols;
@@ -45,6 +154,17 @@ void draw_screen() {
     // for text
     size_t saved = cursor;
     gb_set_point(gb, 0);
+    size_t line = 0;
+
+    //skip lines above view line
+    //we should start rendering form view_line so skip lines until we reach view_line and start rendering
+    while(line < view_line) {
+        if(gb_get_char(gb) == '\n') {
+            line ++;
+        }
+        gb_next_char(gb);
+    }
+    //now line == view_line
 
     int y = 0, x = 0;
     size_t pos = 0;
@@ -55,7 +175,9 @@ void draw_screen() {
         if (c == '\n') {
             y++;
             x = 0;
-        } else {
+        } 
+        else{
+
             mvaddch(y, x++, c);
         }
 
@@ -69,7 +191,8 @@ void draw_screen() {
 
     if (mode == COMMAND) {
         mvprintw(rows - 1, 0, ":%s", command);
-    } else {
+    }
+    else {
         mvprintw(rows - 1, 0,
              "-- %s -- | Ln %zu : Col %zu| %s",
              mode == INSERT ? "INSERT" :
@@ -79,20 +202,15 @@ void draw_screen() {
     attroff(A_REVERSE);
 
     // restore cursor 
-    gb_set_point(gb, 0);
-    y = x = 0;
-    for (size_t i = 0; i < cursor; i++) {
-        char c = gb_get_char(gb);
-        if (c == '\n') {
-            y++;
-            x = 0;
-        } else {
-            x++;
-        }
-        gb_next_char(gb);
-    }
-    move(y, x);
+    size_t cursor_line,cursor_col;
+    get_line_cols(cursor,&cursor_line, &cursor_col);
 
+    cursor_line--; // zero based for indexing
+
+    int screen_y = (int)(cursor_line - view_line);
+    int screen_x = (int)(cursor_col - 1);
+
+    move(screen_y,screen_x);
     refresh();
 }
 
@@ -119,12 +237,22 @@ void editor_loop(void)
                 // vim motions 
                 case 'h':
                     if (cursor > 0) cursor--;
+                    adjust_screen();
                     break;
                 case 'l':
                     if (cursor < gb_buffer_size(gb)) cursor++;
+                    adjust_screen();
                     break;
+                //skip k and j for now its a bf
                 case 'k':
+                    MoveCursorUp();
+                    adjust_screen();
                     break;
+                case 'j' : 
+                    MoveCursorDown();
+                    adjust_screen();
+                    break;
+
 
                  //insert mode 
                 case 'i':

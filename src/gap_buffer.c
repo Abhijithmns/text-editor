@@ -279,7 +279,8 @@ int gb_load_file(GapBuffer *gb,FILE *file) {
 
     size_t read = fread(gb->gapstart,1,size,file); //reading byte by byte
     gb->gapstart+=read;
-    gb->point = gb->gapstart;
+    cursor = 0;
+    gb_set_point(gb,0);
 
     return 1;
 
