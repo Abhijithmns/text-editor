@@ -143,13 +143,46 @@ void adjust_screen() {
     }
 }
 
-void draw_screen() {
-    clear();
+void draw_statusbar() {
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
     size_t line_no, col_no;
     get_line_cols(cursor,&line_no,&col_no);
+
+    attron(A_REVERSE);
+    mvhline(rows - 1, 0, ' ', cols);
+
+    if (mode == COMMAND) {
+        mvprintw(rows - 1, 0, ":%s", command);
+    }
+    else {
+        mvprintw(rows - 1, 0,
+             "-- %s -- | Ln %zu : Col %zu| %s",
+             mode == INSERT ? "INSERT" :
+             mode == NORMAL ? "NORMAL" : "COMMAND",
+             line_no,col_no,current_file ? current_file : "[No Name]");
+    }
+    attroff(A_REVERSE);
+
+}
+
+void place_cursor() {
+    size_t cursor_line,cursor_col;
+    get_line_cols(cursor,&cursor_line, &cursor_col);
+
+    cursor_line--; // zero based for indexing
+
+    int screen_y = (int)(cursor_line - view_line);
+    int screen_x = (int)(cursor_col - 1);
+
+    move(screen_y,screen_x);
+
+}
+void draw_screen() {
+    clear();
+    int rows, cols;
+    getmaxyx(stdscr, rows, cols);
 
     // for text
     size_t saved = cursor;
@@ -185,32 +218,16 @@ void draw_screen() {
         pos++;
     }
 
+    while(y < rows - 1) {
+        mvaddch(y+1,0,'~');
+        y++;
+    }
+
     // for status bar 
-    attron(A_REVERSE);
-    mvhline(rows - 1, 0, ' ', cols);
+    draw_statusbar();
+    
 
-    if (mode == COMMAND) {
-        mvprintw(rows - 1, 0, ":%s", command);
-    }
-    else {
-        mvprintw(rows - 1, 0,
-             "-- %s -- | Ln %zu : Col %zu| %s",
-             mode == INSERT ? "INSERT" :
-             mode == NORMAL ? "NORMAL" : "COMMAND",
-             line_no,col_no,current_file);
-    }
-    attroff(A_REVERSE);
-
-    // restore cursor 
-    size_t cursor_line,cursor_col;
-    get_line_cols(cursor,&cursor_line, &cursor_col);
-
-    cursor_line--; // zero based for indexing
-
-    int screen_y = (int)(cursor_line - view_line);
-    int screen_x = (int)(cursor_col - 1);
-
-    move(screen_y,screen_x);
+    place_cursor();
     refresh();
 }
 
@@ -239,22 +256,33 @@ void editor_loop(void)
                     if (cursor > 0) cursor--;
                     adjust_screen();
                     break;
+
+                case KEY_BACKSPACE:
+                    if (cursor > 0) cursor--;
+                    adjust_screen();
+                    break;
+
                 case 'l':
                     if (cursor < gb_buffer_size(gb)) cursor++;
                     adjust_screen();
                     break;
-                //skip k and j for now its a bf
+
                 case 'k':
                     MoveCursorUp();
                     adjust_screen();
                     break;
+
                 case 'j' : 
                     MoveCursorDown();
                     adjust_screen();
                     break;
 
+                case 'g':
+                    cursor = 0;
+                    gb_set_point(gb,cursor);
+                    view_line = 0;
+                    break;
 
-                 //insert mode 
                 case 'i':
                     mode = INSERT;
                     break;
@@ -265,6 +293,7 @@ void editor_loop(void)
                     cmd_len = 0;
                     command[0] = '\0';
                     break;
+                mode = NORMAL;
             }
         }
         else if (mode == INSERT) {
@@ -306,7 +335,7 @@ void editor_loop(void)
                             fclose(file);
                         }
                     }
-                }
+                3
                 else if(strcmp(command,"wq") == 0) {
                     if(current_file) {
                         FILE *file = fopen(current_file,"w");
@@ -315,6 +344,9 @@ void editor_loop(void)
                             gb_save_to_file(gb,file);
                             fclose(file);
                         }
+                    }
+                    else {
+                        
                     }
                     break;
                 }
