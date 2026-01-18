@@ -66,7 +66,6 @@ void MoveCursorDown() {
     size_t next_end = next_start;
     while(next_end < buf_size) {
         gb_set_point(gb,next_end);
-
         if(gb_get_char(gb) == '\n') {
             break;
         }
@@ -75,11 +74,11 @@ void MoveCursorDown() {
 
     size_t next_len = next_end - next_start;
 
-    if(next_len < col) {
-        cursor = next_start + next_len; //points at the end of the word
+    if(col < next_len) {
+        cursor = next_start + col;
     }
     else {
-        cursor = next_start + col;
+        cursor = next_start + next_len;
     }
 }
 
@@ -95,9 +94,8 @@ void MoveCursorUp() {
         line_start--;
     }
 
-    if(line_start == 0) {
-        return;
-    }
+    if(line_start == 0) return;
+
     size_t col = cursor - line_start;
 
     size_t prev_end = line_start - 1;
@@ -133,8 +131,6 @@ void adjust_screen() {
     size_t screen_lines = rows-2; //number of that screen can display and the last line is for status line
 
     if(cursor_line >= view_line + screen_lines) { //cursor went down so scroll down 
-        //last visible line on the screen = view_line + screen_lines - 1;
-        //we can get view_line from the above eqn
         view_line = cursor_line - screen_lines + 1;
     }
 
@@ -158,13 +154,12 @@ void draw_statusbar() {
     }
     else {
         mvprintw(rows - 1, 0,
-             "-- %s -- | Ln %zu : Col %zu| %s",
+             "-- %s -- | Ln %zu : Col %zu | %s",
              mode == INSERT ? "INSERT" :
              mode == NORMAL ? "NORMAL" : "COMMAND",
              line_no,col_no,current_file ? current_file : "[No Name]");
     }
     attroff(A_REVERSE);
-
 }
 
 void place_cursor() {
@@ -177,56 +172,56 @@ void place_cursor() {
     int screen_x = (int)(cursor_col - 1);
 
     move(screen_y,screen_x);
-
 }
+
 void draw_screen() {
     clear();
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
 
     // for text
-    size_t saved = cursor;
     gb_set_point(gb, 0);
     size_t line = 0;
 
     //skip lines above view line
-    //we should start rendering form view_line so skip lines until we reach view_line and start rendering
     while(line < view_line) {
         if(gb_get_char(gb) == '\n') {
             line ++;
         }
         gb_next_char(gb);
     }
-    //now line == view_line
 
     int y = 0, x = 0;
-    size_t pos = 0;
+
     //to actually print the charecters to the stdout
-    while (pos < gb_buffer_size(gb) && y < rows - 1) {
+    while (y < rows - 1 && gb_point_offset(gb) < gb_buffer_size(gb)) {
         char c = gb_get_char(gb);
 
         if (c == '\n') {
             y++;
             x = 0;
         } 
-        else{
-
+        else {
+            if (x >= cols) {
+                y++;
+                x = 0;
+                if (y >= rows - 1) break;
+            }
             mvaddch(y, x++, c);
         }
 
         gb_next_char(gb);
-        pos++;
     }
 
+     
+    y=y+1;
     while(y < rows - 1) {
-        mvaddch(y+1,0,'~');
+        mvaddch(y,0,'~');
         y++;
     }
 
     // for status bar 
     draw_statusbar();
-    
-
     place_cursor();
     refresh();
 }
@@ -253,10 +248,6 @@ void editor_loop(void)
             switch (ch) {
                 // vim motions 
                 case 'h':
-                    if (cursor > 0) cursor--;
-                    adjust_screen();
-                    break;
-
                 case KEY_BACKSPACE:
                     if (cursor > 0) cursor--;
                     adjust_screen();
@@ -272,7 +263,7 @@ void editor_loop(void)
                     adjust_screen();
                     break;
 
-                case 'j' : 
+                case 'j':
                     MoveCursorDown();
                     adjust_screen();
                     break;
@@ -287,13 +278,12 @@ void editor_loop(void)
                     mode = INSERT;
                     break;
 
-                 //command mode (add only :q for now) 
+                //command mode
                 case ':':
                     mode = COMMAND;
                     cmd_len = 0;
                     command[0] = '\0';
                     break;
-                mode = NORMAL;
             }
         }
         else if (mode == INSERT) {
@@ -305,17 +295,24 @@ void editor_loop(void)
                     gb_set_point(gb, cursor);
                     gb_delete_chars(gb, 1);
                     cursor--;
+                    adjust_screen();
                 }
             }
             else if (ch == '\n') {
                 gb_set_point(gb, cursor);
                 gb_put_char(gb, '\n');
                 cursor++;
+                adjust_screen();
             }
             else if (ch >= 32 && ch <= 126) {
                 gb_set_point(gb, cursor);
                 gb_put_char(gb, (char)ch);
                 cursor++;
+                adjust_screen();
+            }
+            else if(ch == KEY_UP) {
+                MoveCursorUp();
+                adjust_screen();
             }
         }
         else if (mode == COMMAND) {
@@ -329,28 +326,22 @@ void editor_loop(void)
                 else if(strcmp(command,"w") == 0) {
                     if(current_file) {
                         FILE *file = fopen(current_file,"w");
-
                         if(file) {
                             gb_save_to_file(gb,file);
                             fclose(file);
                         }
                     }
-                3
+                }
                 else if(strcmp(command,"wq") == 0) {
                     if(current_file) {
                         FILE *file = fopen(current_file,"w");
-
                         if(file) {
                             gb_save_to_file(gb,file);
                             fclose(file);
                         }
                     }
-                    else {
-                        
-                    }
                     break;
                 }
-                
                 mode = NORMAL;
             }
             else if (ch == KEY_BACKSPACE || ch == 127) {
@@ -365,7 +356,6 @@ void editor_loop(void)
                 }
             }
         }
-
     }
 }
 
