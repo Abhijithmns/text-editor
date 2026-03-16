@@ -33,4 +33,5 @@ change the 500 to a larger value to test with bigger files
 - [x] Add line number,col number to status bar
 - [x] Scrolling,fix cursor 
 
-This isnt trying to compete with Vim.Its just me building one to learn
+I use neovim btw
+
